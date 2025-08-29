@@ -70,6 +70,12 @@ It eliminates fake requests with **ABHA ID & prescription verification**, ensure
 - **Hosting:** Azure Cloud  
 
 ---
+## 🤝 Contributors
+
+Thanks to all the amazing contributors who made CrimsonCare possible:
+
+- **Hrishikesh Jeeri** 
+- **Koushik Galla**
 
 ## 🚀 Getting Started
 
