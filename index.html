@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crimson Care - Community Dashboard</title>
+    
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React Libraries -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel to compile JSX in the browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* Custom scrollbar for chat window */
+        .chat-window::-webkit-scrollbar { width: 8px; }
+        .chat-window::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        .chat-window::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
+        .chat-window::-webkit-scrollbar-thumb:hover { background: #555; }
+        .page-enter { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Glowing button animation */
+        .glowing-btn { animation: glow 2.5s infinite; }
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 5px #ef4444, 0 0 10px #ef4444; }
+            50% { box-shadow: 0 0 20px #ef4444, 0 0 30px #f87171; }
+        }
+
+        /* AI Toy Animation */
+        .ai-loader div {
+            animation: pulse 1.5s infinite ease-in-out;
+            background-color: #ef4444;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+        }
+        .ai-loader div:nth-child(2) { animation-delay: 0.2s; }
+        .ai-loader div:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes pulse {
+            0%, 100% { transform: scale(0.5); opacity: 0.5; }
+            50% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- DATABASE SIMULATION ---
+        const newCsvData = [
+            { user_id: 'U100', name: 'Rudra Khan', blood_group: 'A-', city: 'Hyderabad', role: 'Bridge Donor', insert_time: '2025-01-13 22:27:12' },
+            { user_id: 'U101', name: 'Avni Joshi', blood_group: 'A+', city: 'Pune', role: 'Emergency Donor', insert_time: '2025-02-05 15:01:22' },
+            { user_id: 'U102', name: 'Aarav Bose', blood_group: 'A+', city: 'Kolkata', role: 'Emergency Donor', insert_time: '2025-01-11 09:15:46' },
+            { user_id: 'U103', name: 'Aarav Reddy', blood_group: 'O-', city: 'Delhi', role: 'Bridge Donor', insert_time: '2025-05-13 15:03:29' },
+            { user_id: 'U104', name: 'Myra Chopra', blood_group: 'AB-', city: 'Bengaluru', role: 'Fighter', insert_time: '2025-06-17 15:45:51' },
+            { user_id: 'U285', name: 'Arjun Verma', blood_group: 'O+', city: 'Pune', role: 'Emergency Donor', insert_time: '2025-07-02 07:47:34' },
+            { user_id: 'U287', name: 'Myra Mehta', blood_group: 'O+', city: 'Ahmedabad', role: 'Fighter', insert_time: '2025-05-30 03:03:09' },
+            { user_id: 'U288', name: 'Krishna Menon', blood_group: 'A-', city: 'Hyderabad', role: 'Emergency Donor', insert_time: '2025-04-06 02:47:53' }
+        ];
+        
+        const hospitalNames = ['Apollo Hospital', 'MaxCure Hospital', 'KIMS Hospital', 'Yashoda Hospital', 'Care Hospital', 'Continental Hospital', 'Sunshine Hospital'];
+
+        const initialBloodRequests = newCsvData
+            .filter(row => row.role === 'Bridge Donor' || row.role === 'Fighter')
+            .map((row, index) => ({
+                id: row.user_id,
+                user: row.name,
+                bloodType: row.blood_group,
+                location: row.city,
+                hospital: hospitalNames[index % hospitalNames.length],
+                timestamp: new Date(row.insert_time),
+            }));
+
+        const initialMockDonors = newCsvData
+            .filter(row => row.role === 'Emergency Donor')
+            .map(row => ({
+                id: row.user_id,
+                name: row.name,
+                bloodType: row.blood_group,
+                role: row.role,
+            }));
+
+        const initialMockPatients = newCsvData
+            .filter(row => row.role === 'Bridge Donor' || row.role === 'Fighter')
+            .map((row) => ({
+                id: row.user_id,
+                name: row.name,
+                bloodType: row.blood_group,
+                location: row.city,
+                verification_status: 'Verified',
+            }));
+
+        const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+        const logoUrl = "src/logo.jpg";
+        const staticLogoUrl = "src/logo.jpg";
+
+        const timeAgo = (date) => {
+            const seconds = Math.floor((new Date() - date) / 1000);
+            let interval = seconds / 3600;
+            if (interval > 24) return Math.floor(interval / 24) + " days ago";
+            if (interval > 1) return Math.floor(interval) + " hours ago";
+            interval = seconds / 60;
+            if (interval > 1) return Math.floor(interval) + " minutes ago";
+            return Math.floor(seconds) + " seconds ago";
+        };
+
+        // --- REACT COMPONENTS ---
+
+        const GoogleAccountChooser = ({ onSelectAccount, onClose }) => {
+            const sampleAccounts = [
+                { name: 'Hrishikesh', email: 'hrishikesh28505@gmail.com' },
+                { name: 'Koushik', email: 'Koushik.galla@gmail.com' },
+            ];
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-sm">
+                        <div className="p-4 border-b text-center">
+                            <h3 className="text-lg font-semibold">Choose an account</h3>
+                            <p className="text-sm text-gray-500">to continue to Crimson Care</p>
+                        </div>
+                        <div className="p-2">
+                            {sampleAccounts.map(account => (
+                                <div key={account.email} onClick={() => onSelectAccount(account.name)} className="flex items-center p-3 rounded-lg hover:bg-gray-100 cursor-pointer">
+                                    <div className="h-8 w-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm mr-3">
+                                        {account.name.charAt(0)}
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-sm">{account.name}</p>
+                                        <p className="text-xs text-gray-500">{account.email}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="p-4 border-t">
+                            <button onClick={onClose} className="w-full text-sm text-gray-600 hover:text-gray-800">Use another account</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const LoginScreen = ({ onLogin, onSwitchToRegister }) => {
+            const [loginAs, setLoginAs] = useState('user'); 
+            const [showGoogleChooser, setShowGoogleChooser] = useState(false);
+
+            const TabButton = ({ role, label, icon }) => (
+                <button 
+                    onClick={() => setLoginAs(role)}
+                    className={`flex-1 py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-colors duration-300 ${loginAs === role ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
+                >
+                    <i className={`fas ${icon}`}></i> {label}
+                </button>
+            );
+
+            return (
+                <div className="flex items-center justify-center h-screen bg-red-50">
+                    {showGoogleChooser && <GoogleAccountChooser onSelectAccount={onLogin} onClose={() => setShowGoogleChooser(false)} />}
+                    <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div className="flex">
+                            <TabButton role="user" label="User / Donor" icon="fa-user" />
+                            <TabButton role="hospital" label="Hospital" icon="fa-hospital" />
+                            <TabButton role="bloodbank" label="Blood Bank" icon="fa-clinic-medical" />
+                        </div>
+                        <div className="p-8 space-y-6">
+                            <div className="text-center">
+                                <div className="flex justify-center mb-4"><img src= "src/logo.jpg" alt="Crimson Care Logo" className="h-20" /></div>
+                                <h2 className="text-3xl font-bold text-gray-900">Crimson Care</h2>
+                                <p className="text-gray-600">
+                                    {loginAs === 'user' && 'Sign in to continue.'}
+                                    {loginAs === 'hospital' && 'Hospital Portal Login.'}
+                                    {loginAs === 'bloodbank' && 'Blood Bank Portal Login.'}
+                                </p>
+                            </div>
+                            <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); onLogin('Demo User'); }}>
+                                <div><input id="username" name="username" type="text" required className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder={loginAs === 'user' ? 'Username' : 'Official Email'} /></div>
+                                <div><input id="password" name="password" type="password" required className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="Password" /></div>
+                                {loginAs === 'user' && <div className="text-right text-sm"><a href="#" className="font-medium text-red-600 hover:text-red-500">Forgot password?</a></div>}
+                                <button type="submit" className="w-full px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700">Sign In</button>
+                            </form>
+                            {loginAs === 'user' ? (
+                                <>
+                                    <div className="relative flex items-center justify-center">
+                                        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-300"></div></div>
+                                        <div className="relative flex justify-center text-sm"><span className="px-2 bg-white text-gray-500">Or</span></div>
+                                    </div>
+                                    <div><button onClick={() => setShowGoogleChooser(true)} className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"><img className="h-5 w-5 mr-2" src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google icon" />Continue with Google</button></div>
+                                    <div className="text-sm text-center">Don't have an account?{' '}<button onClick={() => onSwitchToRegister('userRegister')} className="font-medium text-red-600 hover:text-red-500">Register</button></div>
+                                </>
+                            ) : (
+                                <div className="text-sm text-center">
+                                    <button onClick={() => onSwitchToRegister(loginAs === 'hospital' ? 'hospitalRegister' : 'bloodBankRegister')} className="font-medium text-red-600 hover:text-red-500">
+                                        New Facility? Register Here
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const RegisterScreen = ({ onRegister, onSwitchToLogin }) => (
+            <div className="flex items-center justify-center min-h-screen bg-red-50 py-12">
+                <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-2xl shadow-lg">
+                    <div className="text-center">
+                        <div className="flex justify-center mb-4"><img src= "src/logo.jpg" alt="Crimson Care Logo" className="h-20" /></div>
+                        <h2 className="text-3xl font-bold text-gray-900">Create Account</h2>
+                        <p className="text-gray-600">Join our community of lifesavers.</p>
+                    </div>
+                    <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); onRegister('New User'); }}>
+                        <div><input id="reg-fullname" name="fullname" type="text" required className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="Full Name" /></div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div><input id="reg-age" name="age" type="number" required className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="Age" /></div>
+                            <div><select id="reg-gender" name="gender" required className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-500 focus:outline-none focus:ring-red-500 focus:border-red-500"><option value="">Gender</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select></div>
+                        </div>
+                        <div><input id="reg-location" name="location" type="text" required className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="Location (e.g., Hyderabad)" /></div>
+                        <div><input id="reg-username" name="username" type="text" required className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="Username" /></div>
+                        <div><input id="reg-password" name="password" type="password" required className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="Password" /></div>
+                        <div><select id="bloodGroup" name="bloodGroup" required className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-500 focus:outline-none focus:ring-red-500 focus:border-red-500"><option value="">Select Your Blood Group</option>{bloodTypes.map(bt => <option key={bt} value={bt}>{bt}</option>)}</select></div>
+                        <button type="submit" className="w-full px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700">Register</button>
+                    </form>
+                    <div className="text-sm text-center">Already have an account?{' '}<button onClick={onSwitchToLogin} className="font-medium text-red-600 hover:text-red-500">Sign In</button></div>
+                </div>
+            </div>
+        );
+
+        const FacilityRegisterScreen = ({ onRegister, onSwitchToLogin, type }) => {
+            const title = type === 'hospital' ? 'Hospital Registration' : 'Blood Bank Registration';
+            const fields = type === 'hospital'
+                ? [{ name: 'hospitalName', placeholder: 'Hospital Name' }, { name: 'registrationId', placeholder: 'Medical Registration ID' }]
+                : [{ name: 'bloodBankName', placeholder: 'Blood Bank Name' }, { name: 'licenseNumber', placeholder: 'License Number' }];
+
+            return (
+                <div className="flex items-center justify-center min-h-screen bg-red-50 py-12">
+                    <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-2xl shadow-lg">
+                        <div className="text-center">
+                            <div className="flex justify-center mb-4"><img src= "src/logo.jpg" alt="Crimson Care Logo" className="h-20" /></div>
+                            <h2 className="text-3xl font-bold text-gray-900">{title}</h2>
+                            <p className="text-gray-600">Join our trusted network.</p>
+                        </div>
+                        <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); onRegister('Facility User'); }}>
+                            {fields.map(field => (
+                                <div key={field.name}><input name={field.name} type="text" required className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder={field.placeholder} /></div>
+                            ))}
+                            <div><input name="address" type="text" required className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="Full Address" /></div>
+                            <div><input name="email" type="email" required className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="Official Email" /></div>
+                            <div><input name="password" type="password" required className="w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="Create Password" /></div>
+                            <button type="submit" className="w-full px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700">Register Facility</button>
+                        </form>
+                        <div className="text-sm text-center">Already registered?{' '}<button onClick={onSwitchToLogin} className="font-medium text-red-600 hover:text-red-500">Sign In</button></div>
+                    </div>
+                </div>
+            );
+        };
+        
+        const LoadingScreen = () => (
+            <div className="flex flex-col items-center justify-center h-screen bg-red-50">
+                <img src= "src/logo.jpg" alt="Loading..." className="h-24" />
+                <p className="text-red-500 font-semibold mt-4">Loading Dashboard...</p>
+            </div>
+        );
+
+        const DashboardView = ({ user, onNavigate, requests }) => (
+            <div className="page-enter space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <button onClick={() => onNavigate('request')} className="bg-red-500 text-white p-6 rounded-2xl shadow-lg hover:bg-red-600 transition duration-300 text-left">
+                        <div className="flex items-center mb-2">
+                            <div className="bg-white/30 p-3 rounded-full mr-4"><i className="fas fa-heartbeat text-2xl text-white"></i></div>
+                            <div><h2 className="text-2xl font-bold">Request Blood</h2><p className="opacity-80">Emergency Help</p></div>
+                        </div>
+                    </button>
+                    <button onClick={() => onNavigate('donate')} className="bg-white border border-red-200 text-red-500 p-6 rounded-2xl shadow-lg hover:bg-red-50 transition duration-300 text-left">
+                         <div className="flex items-center mb-2">
+                            <div className="bg-red-100 p-3 rounded-full mr-4"><i className="fas fa-tint text-2xl text-red-500"></i></div>
+                            <div><h2 className="text-2xl font-bold">Donate Now</h2><p className="text-red-400">Be a Hero</p></div>
+                        </div>
+                    </button>
+                </div>
+                <div className="bg-white p-6 rounded-xl shadow-md space-y-4">
+                    <div className="bg-red-500 text-white p-4 rounded-lg">
+                        <div className="flex justify-between items-center mb-2">
+                            <h3 className="text-lg font-bold flex items-center"><i className="fas fa-robot mr-2"></i> AI Assistant</h3>
+                            <button onClick={() => onNavigate('chat')} className="bg-white/30 px-4 py-1 rounded-full text-sm font-semibold hover:bg-white/40">Chat Now</button>
+                        </div>
+                        <p className="opacity-90 text-sm">"It's been 3 months since your last donation. Ready to save lives again? 💪"</p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <button onClick={() => onNavigate('donorList')} className="w-full bg-blue-50 text-blue-700 font-semibold py-3 px-4 rounded-lg hover:bg-blue-100 transition duration-300 flex items-center justify-center">
+                            <i className="fas fa-users mr-2"></i> View Donor List
+                        </button>
+                        <button onClick={() => onNavigate('patientList')} className="w-full bg-purple-50 text-purple-700 font-semibold py-3 px-4 rounded-lg hover:bg-purple-100 transition duration-300 flex items-center justify-center">
+                            <i className="fas fa-procedures mr-2"></i> View Patient List
+                        </button>
+                    </div>
+                </div>
+                <ActiveRequests requests={requests} onNavigate={onNavigate} />
+            </div>
+        );
+        
+        const RequestPage = ({ onNavigate, onSubmitRequest, requestData }) => {
+            const [formData, setFormData] = useState({
+                patientName: requestData?.name || '',
+                patientAge: requestData?.age || '',
+                bloodType: requestData?.bloodType || 'A+',
+                quantity: requestData?.quantity || '',
+                cityName: requestData?.location || '',
+                abhaNumber: requestData?.abhaNumber || '',
+            });
+
+            const handleChange = (e) => {
+                const { name, value } = e.target;
+                setFormData(prev => ({ ...prev, [name]: value }));
+            };
+            
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                const formEl = e.target;
+                const newRequest = {
+                    id: requestData?.id || Date.now(),
+                    name: formData.patientName,
+                    location: formData.cityName,
+                    bloodType: formData.bloodType,
+                    abhaNumber: formData.abhaNumber,
+                    hasPrescription: formEl.prescriptionUpload.files.length > 0 || requestData?.hasPrescription,
+                };
+                onSubmitRequest(newRequest, !!requestData);
+            };
+
+            return (
+                <div className="page-enter bg-white p-6 md:p-8 rounded-2xl shadow-lg">
+                    <button onClick={() => onNavigate('dashboard')} className="text-red-500 font-semibold mb-6 flex items-center"><i className="fas fa-arrow-left mr-2"></i> Back to Dashboard</button>
+                    <h2 className="text-3xl font-bold text-gray-800 mb-6">{requestData ? 'Update Blood Request' : 'Request Blood'}</h2>
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div><label className="block text-sm font-medium text-gray-700">Patient Full Name</label><input name="patientName" type="text" value={formData.patientName} onChange={handleChange} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-red-500 focus:border-red-500" /></div>
+                            <div><label className="block text-sm font-medium text-gray-700">Patient Age</label><input name="patientAge" type="number" value={formData.patientAge} onChange={handleChange} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-red-500 focus:border-red-500" /></div>
+                            <div><label className="block text-sm font-medium text-gray-700">Required Blood Type</label><select name="bloodType" value={formData.bloodType} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-red-500 focus:border-red-500">{bloodTypes.map(bt => <option key={bt}>{bt}</option>)}</select></div>
+                            <div><label className="block text-sm font-medium text-gray-700">Quantity Required (in Units)</label><input name="quantity" type="number" value={formData.quantity} onChange={handleChange} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="e.g., 2" /></div>
+                            <div><label className="block text-sm font-medium text-gray-700">City</label><input name="cityName" type="text" value={formData.cityName} onChange={handleChange} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-red-500 focus:border-red-500" /></div>
+                            <div><label className="block text-sm font-medium text-gray-700">Ayushman Bharat Health Account (ABHA)</label><input name="abhaNumber" type="text" value={formData.abhaNumber} onChange={handleChange} required maxLength="14" pattern="\d{14}" title="ABHA number must be 14 digits." className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="e.g., 12345678901234" /></div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Upload Doctor's Prescription</label>
+                            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                                <div className="space-y-1 text-center">
+                                    <i className="fas fa-file-upload mx-auto h-12 w-12 text-gray-400"></i>
+                                    <div className="flex text-sm text-gray-600"><label htmlFor="prescriptionUpload" className="relative cursor-pointer bg-white rounded-md font-medium text-red-600 hover:text-red-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-red-500"><span>Upload a file</span><input id="prescriptionUpload" name="prescriptionUpload" type="file" className="sr-only" /></label><p className="pl-1">or drag and drop</p></div>
+                                    <p className="text-xs text-gray-500">PNG, JPG, PDF up to 10MB</p>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" className="w-full bg-red-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-red-700 transition duration-300 text-lg">{requestData ? 'Update Request' : 'Submit Emergency Request'}</button>
+                    </form>
+                </div>
+            );
+        };
+        
+        const DonatePage = ({ onNavigate, onSubmitDonation }) => {
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const newDonor = {
+                    name: formData.get('donorName'),
+                    bloodType: formData.get('bloodType'),
+                    role: 'Emergency Donor',
+                };
+                onSubmitDonation(newDonor);
+            };
+            return (
+                <div className="page-enter bg-white p-6 md:p-8 rounded-2xl shadow-lg">
+                    <button onClick={() => onNavigate('dashboard')} className="text-red-500 font-semibold mb-6 flex items-center"><i className="fas fa-arrow-left mr-2"></i> Back to Dashboard</button>
+                    <h2 className="text-3xl font-bold text-gray-800 mb-2">Register as a Donor</h2>
+                    <p className="text-gray-600 mb-6">Join our list of heroes and get notified for urgent needs.</p>
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <div><label className="block text-sm font-medium text-gray-700">Full Name</label><input name="donorName" type="text" required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-red-500 focus:border-red-500" /></div>
+                        <div><label className="block text-sm font-medium text-gray-700">Blood Type</label><select name="bloodType" defaultValue="A+" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-red-500 focus:border-red-500">{bloodTypes.map(bt => <option key={bt}>{bt}</option>)}</select></div>
+                        <button type="submit" className="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition duration-300 text-lg">Join Donor List</button>
+                    </form>
+                </div>
+            );
+        };
+
+        const DonateToPatientPage = ({ onNavigate, request, onConfirm }) => (
+            <div className="page-enter bg-white p-6 md:p-8 rounded-2xl shadow-lg">
+                <button onClick={() => onNavigate('dashboard')} className="text-red-500 font-semibold mb-6 flex items-center"><i className="fas fa-arrow-left mr-2"></i> Back to Dashboard</button>
+                <h2 className="text-3xl font-bold text-gray-800 mb-2">Confirm Donation</h2>
+                <p className="text-gray-600 mb-6">You are about to help a patient in need. Please verify the details below.</p>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-6 space-y-4 mb-6">
+                    <div><span className="font-semibold text-gray-700">Patient at:</span><p className="text-lg font-bold text-red-600">{request.hospital}</p></div>
+                    <div><span className="font-semibold text-gray-700">Required Blood Group:</span><p className="text-lg font-bold text-red-600">{request.bloodType}</p></div>
+                    <div><span className="font-semibold text-gray-700">Location:</span><p className="text-lg font-bold text-red-600">{request.location}</p></div>
+                </div>
+                <div className="text-center">
+                    <button onClick={() => onConfirm(request)} className="w-full md:w-auto bg-green-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-green-700 transition duration-300 text-lg">
+                        <i className="fas fa-check-circle mr-2"></i> Confirm & Verify Donation
+                    </button>
+                    <p className="text-xs text-gray-500 mt-3">Upon verification, your details will be sent to the hospital/blood camp.</p>
+                </div>
+            </div>
+        );
+
+        const ActiveRequests = ({ requests, onNavigate }) => (
+            <div className="bg-white p-6 rounded-xl shadow-md">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-gray-800 flex items-center"><i className="fas fa-exclamation-triangle text-red-500 mr-2"></i> Active Requests</h3>
+                    <a href="#" className="text-sm font-semibold text-red-500 hover:underline">View All</a>
+                </div>
+                <div className="space-y-4">
+                    {requests.slice(0, 5).map(req => (
+                        <div key={req.id} className="p-4 border rounded-lg flex items-center space-x-4 hover:bg-gray-50">
+                            <div className="bg-red-100 text-red-600 font-bold text-xl rounded-full h-12 w-12 flex-shrink-0 flex items-center justify-center">{req.bloodType}</div>
+                            <div className="flex-grow">
+                                <p className="font-semibold text-gray-800">{req.hospital}</p>
+                                <p className="text-sm text-gray-500">{req.location} &bull; {timeAgo(req.timestamp)}</p>
+                            </div>
+                            <div className="ml-auto text-right flex-shrink-0">
+                                <button onClick={() => onNavigate('donateToPatient', req)} className="glowing-btn bg-red-500 text-white font-bold py-2 px-4 rounded-full text-sm shadow-lg hover:bg-red-600 transition-all duration-300">Donate</button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+
+        const ListPage = ({ title, icon, data, columns, onNavigate, onVerify, onEditRequest, onConnect }) => {
+            const StatusBadge = ({ status, onClick }) => {
+                const colors = {
+                    'Pending': 'bg-yellow-100 text-yellow-800',
+                    'Verified': 'bg-green-100 text-green-800',
+                    'Missing Documents': 'bg-red-100 text-red-800 cursor-pointer hover:bg-red-200',
+                };
+                return <span onClick={onClick} className={`px-2 py-1 text-xs font-semibold rounded-full ${colors[status] || 'bg-gray-100 text-gray-800'}`}>{status}</span>;
+            };
+
+            return (
+                <div className="page-enter bg-white p-6 md:p-8 rounded-2xl shadow-lg">
+                    <button onClick={() => onNavigate('dashboard')} className="text-red-500 font-semibold mb-6 flex items-center"><i className={`fas ${icon} mr-3`}></i> Back to Dashboard</button>
+                    <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center"><i className={`fas ${icon} mr-3`}></i> {title}</h2>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full text-sm text-left text-gray-500">
+                            <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                                <tr>
+                                    {columns.map(col => <th key={col.key} scope="col" className="py-3 px-6">{col.label}</th>)}
+                                    <th scope="col" className="py-3 px-6">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data.map(row => (
+                                    <tr key={row.id} className="bg-white border-b">
+                                        {columns.map(col => <td key={col.key} className="py-4 px-6">{col.key === 'verification_status' ? <StatusBadge status={row[col.key]} onClick={() => row[col.key] === 'Missing Documents' && onEditRequest(row)} /> : row[col.key]}</td>)}
+                                        <td className="py-4 px-6">
+                                            {title === 'Patient List' && row.verification_status === 'Pending' && (
+                                                <button onClick={() => onVerify(row)} className="bg-green-500 text-white font-bold py-1 px-3 rounded-full text-xs hover:bg-green-600">Verify</button>
+                                            )}
+                                            {title === 'Patient List' && row.verification_status === 'Verified' && (
+                                                <button onClick={() => onConnect(row)} className="bg-blue-500 text-white font-bold py-1 px-3 rounded-full text-xs hover:bg-blue-600">Find Donors</button>
+                                            )}
+                                            {title === 'Donor List' && (
+                                                <button onClick={() => onNavigate('chat', { donor: row })} className="bg-blue-500 text-white font-bold py-1 px-3 rounded-full text-xs hover:bg-blue-600">Chat</button>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        };
+
+        const ChatbotPage = ({ onNavigate, pageData }) => {
+            const [stage, setStage] = useState('loading');
+            const [messages, setMessages] = useState([]);
+            const [input, setInput] = useState('');
+            const [isTyping, setIsTyping] = useState(false);
+            const chatEndRef = useRef(null);
+
+            // --- AZURE OPENAI CONFIGURATION ---
+            const AZURE_OAI_ENDPOINT = "https://crimson-openai-84ce.openai.azure.com/";
+            const AZURE_OAI_KEY = "3584450970c24b18a2cc28a285119b1c"; // One of your provided keys
+            const DEPLOYMENT_NAME = 'gpt-35-turbo'; // Replace with your actual deployment name
+            
+            useEffect(() => {
+                const timer = setTimeout(() => {
+                    setStage('chat');
+                    const initialMessage = pageData?.donor
+                        ? `You are now connected with ${pageData.donor.name}. You can start your conversation regarding the blood request.`
+                        : 'Hello! I am your AI assistant powered by Azure OpenAI. How can I help you with blood donation queries today?';
+                    setMessages([{ from: 'ai', text: initialMessage }]);
+                }, 1500);
+                return () => clearTimeout(timer);
+            }, []);
+
+            useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+            const getAIResponse = async (query) => {
+                setIsTyping(true);
+                const fullUrl = `${AZURE_OAI_ENDPOINT}openai/deployments/${DEPLOYMENT_NAME}/chat/completions?api-version=2023-07-01-preview`;
+
+                const requestBody = {
+                    messages: [
+                        { role: "system", content: "You are a helpful AI assistant for a blood donation application called Crimson Care. Be concise and friendly." },
+                        { role: "user", content: query }
+                    ],
+                    max_tokens: 150,
+                    temperature: 0.7,
+                };
+
+                try {
+                    const response = await fetch(fullUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'api-key': AZURE_OAI_KEY
+                        },
+                        body: JSON.stringify(requestBody)
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        console.error("Azure OpenAI Error:", errorData);
+                        throw new Error(`API call failed with status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    const aiText = data.choices[0]?.message?.content || "Sorry, I couldn't get a response. Please try again.";
+                    setMessages(prev => [...prev, { from: 'ai', text: aiText }]);
+                } catch (error) {
+                    console.error("Error fetching AI response:", error);
+                    setMessages(prev => [...prev, { from: 'ai', text: "There was an error connecting to the AI assistant. Please check the console for details." }]);
+                } finally {
+                    setIsTyping(false);
+                }
+            };
+            
+            const handleSend = (e) => {
+                e.preventDefault();
+                if (!input.trim()) return;
+                const newMessages = [...messages, { from: 'user', text: input }];
+                setMessages(newMessages);
+                const currentInput = input;
+                setInput('');
+                getAIResponse(currentInput);
+            };
+
+            return (
+                <div className="page-enter bg-white p-6 md:p-8 rounded-2xl shadow-lg">
+                    <button onClick={() => onNavigate('dashboard')} className="text-red-500 font-semibold mb-6 flex items-center"><i className="fas fa-arrow-left mr-2"></i> Back to Dashboard</button>
+                    {stage === 'loading' ? (
+                        <div className="flex flex-col items-center justify-center h-96">
+                            <div className="ai-loader flex space-x-2 mb-4"><div></div><div></div><div></div></div>
+                            <p className="text-gray-600">Connecting to AI Assistant...</p>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col h-[70vh]">
+                            <h2 className="text-3xl font-bold text-gray-800 mb-4">AI Assistant</h2>
+                            <div className="flex-grow chat-window overflow-y-auto mb-4 pr-2 space-y-4">
+                                {messages.map((msg, index) => (
+                                    <div key={index} className={`flex ${msg.from === 'ai' ? 'justify-start' : 'justify-end'}`}>
+                                        <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${msg.from === 'ai' ? 'bg-gray-200 text-gray-800' : 'bg-red-500 text-white'}`}>{msg.text}</div>
+                                    </div>
+                                ))}
+                                {isTyping && (
+                                    <div className="flex justify-start">
+                                        <div className="bg-gray-200 text-gray-800 rounded-2xl px-4 py-2">
+                                            <div className="ai-loader flex space-x-1.5">
+                                                <div className="w-2 h-2 bg-gray-500"></div>
+                                                <div className="w-2 h-2 bg-gray-500"></div>
+                                                <div className="w-2 h-2 bg-gray-500"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                <div ref={chatEndRef} />
+                            </div>
+                            <form onSubmit={handleSend} className="flex space-x-2">
+                                <input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a question..." className="flex-grow p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400" />
+                                <button type="submit" className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"><i className="fas fa-paper-plane"></i></button>
+                            </form>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+        
+        const Modal = ({ title, message, onClose, children }) => (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm text-center">
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">{title}</h3>
+                    <p className="text-gray-600 mb-6">{message}</p>
+                    {children}
+                    <button onClick={onClose} className="bg-red-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-red-600 mt-4">Close</button>
+                </div>
+            </div>
+        );
+
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [isLoading, setIsLoading] = useState(false);
+            const [authMode, setAuthMode] = useState('login');
+            const [currentPage, setCurrentPage] = useState('dashboard');
+            const [pageData, setPageData] = useState(null);
+            const [activeRequests, setActiveRequests] = useState(initialBloodRequests);
+            const [donors, setDonors] = useState(initialMockDonors);
+            const [patients, setPatients] = useState(initialMockPatients);
+            const [showModal, setShowModal] = useState(false);
+            const [modalContent, setModalContent] = useState({ title: '', message: '' });
+            const [verificationModal, setVerificationModal] = useState({ isOpen: false, status: '', patient: null });
+
+            const handleLogin = (username) => {
+                setIsLoading(true);
+                setTimeout(() => {
+                    setUser(username);
+                    setIsLoading(false);
+                }, 2000);
+            };
+
+            const handleNavigate = (page, data = null) => {
+                setCurrentPage(page);
+                setPageData(data);
+            };
+
+            const handleRequestSubmit = (newRequestData, isUpdate) => {
+                if (isUpdate) {
+                    setPatients(prev => prev.map(p => p.id === newRequestData.id ? { ...p, ...newRequestData, verification_status: 'Pending' } : p));
+                    setModalContent({ title: 'Request Updated!', message: 'Your request has been updated. Please go to the Patient List to re-verify your documents.' });
+                } else {
+                    const newPatient = { id: Date.now(), ...newRequestData, verification_status: 'Pending' };
+                    setPatients(prev => [newPatient, ...prev]);
+                    setModalContent({ title: 'Request Submitted!', message: 'Your request has been posted. Please go to the Patient List to verify your documents.' });
+                }
+                
+                setShowModal(true);
+                setCurrentPage('dashboard');
+            };
+
+            const handleDonateNowSubmit = (newDonorData) => {
+                const newDonor = { id: Date.now(), ...newDonorData };
+                setDonors(prev => [newDonor, ...prev]);
+                setModalContent({ title: 'Thank You!', message: `You have been successfully added to the donor list.` });
+                setShowModal(true);
+                setCurrentPage('dashboard');
+            };
+
+            const handleConfirmDonation = (request) => {
+                setModalContent({ title: 'Thank You!', message: `Your intent to donate for the request at ${request.hospital} has been recorded. You will be contacted shortly.` });
+                setShowModal(true);
+                setCurrentPage('dashboard');
+            };
+
+            const handleVerify = (patient) => {
+                setVerificationModal({ isOpen: true, status: 'Processing...', patient: patient });
+                setTimeout(() => {
+                    const newStatus = patient.hasDocs ? 'Verified' : 'Missing Documents';
+                    setVerificationModal({ isOpen: true, status: newStatus, patient: patient });
+                    setPatients(prevPatients => prevPatients.map(p => 
+                        p.id === patient.id ? { ...p, verification_status: newStatus } : p
+                    ));
+                }, 2000);
+            };
+
+            const handleEditRequest = (patient) => {
+                handleNavigate('request', patient);
+            };
+            
+            const handleConnectToDonors = (patient) => {
+                handleNavigate('donorConnectList', patient);
+            };
+
+            if (!user) {
+                switch(authMode) {
+                    case 'login': return <LoginScreen onLogin={handleLogin} onSwitchToRegister={(mode) => setAuthMode(mode)} />;
+                    case 'userRegister': return <RegisterScreen onRegister={handleLogin} onSwitchToLogin={() => setAuthMode('login')} />;
+                    case 'hospitalRegister': return <FacilityRegisterScreen type="hospital" onRegister={handleLogin} onSwitchToLogin={() => setAuthMode('login')} />;
+                    case 'bloodBankRegister': return <FacilityRegisterScreen type="bloodBank" onRegister={handleLogin} onSwitchToLogin={() => setAuthMode('login')} />;
+                    default: return <LoginScreen onLogin={handleLogin} onSwitchToRegister={(mode) => setAuthMode(mode)} />;
+                }
+            }
+            
+            if (isLoading) {
+                return <LoadingScreen />;
+            }
+
+            const renderPage = () => {
+                switch (currentPage) {
+                    case 'request': return <RequestPage onNavigate={handleNavigate} onSubmitRequest={handleRequestSubmit} requestData={pageData} />;
+                    case 'donate': return <DonatePage onNavigate={handleNavigate} onSubmitDonation={handleDonateNowSubmit} />;
+                    case 'donorList': return <ListPage title="Donor List" icon="fa-users" data={donors} columns={[{key: 'name', label: 'Name'}, {key: 'bloodType', label: 'Blood Group'}, {key: 'role', label: 'Role'}]} onNavigate={handleNavigate} />;
+                    case 'patientList': return <ListPage title="Patient List" icon="fa-procedures" data={patients} columns={[{key: 'name', label: 'Patient Name'}, {key: 'bloodType', label: 'Blood Group'}, {key: 'location', label: 'City'}, {key: 'verification_status', label: 'Status'}]} onNavigate={handleNavigate} onVerify={handleVerify} onEditRequest={handleEditRequest} onConnect={handleConnectToDonors} />;
+                    case 'donorConnectList': return <ListPage title="Connect with Donors" icon="fa-comments" data={donors} columns={[{key: 'name', label: 'Name'}, {key: 'bloodType', label: 'Blood Group'}, {key: 'role', label: 'Role'}]} onNavigate={handleNavigate} />;
+                    case 'donateToPatient': return <DonateToPatientPage onNavigate={handleNavigate} request={pageData} onConfirm={handleConfirmDonation} />;
+                    case 'chat': return <ChatbotPage onNavigate={handleNavigate} pageData={pageData} />;
+                    default: return <DashboardView user={user} onNavigate={handleNavigate} requests={activeRequests} />;
+                }
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-100">
+                    <header className="bg-white shadow-sm sticky top-0 z-10">
+                        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+                            <div className="flex items-center space-x-3"><img src="src/logo.jpg" className="h-8" /><h1 className="text-2xl font-bold text-gray-800">Crimson Care</h1></div>
+                            <div className="flex items-center space-x-4"><span className="text-gray-600 hidden sm:block">Welcome, {user}!</span><button onClick={() => setUser(null)} className="text-sm font-medium text-red-600 hover:text-red-800">Logout</button></div>
+                        </div>
+                    </header>
+                    <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">{renderPage()}</main>
+                    {showModal && <Modal title={modalContent.title} message={modalContent.message} onClose={() => setShowModal(false)} />}
+                    {verificationModal.isOpen && (
+                        <Modal title="Verification Status" message={`Verifying request for ${verificationModal.patient.name}...`} onClose={() => setVerificationModal({isOpen: false, status: '', patient: null})}>
+                            <p className="font-bold text-lg">{verificationModal.status}</p>
+                        </Modal>
+                    )}
+                </div>
+            );
+        };
+
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
+        root.render(<App />);
+    </script>
+</body>
+</html>
