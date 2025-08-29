@@ -3,7 +3,7 @@
 [![React](https://img.shields.io/badge/frontend-React-red.svg)](https://react.dev/)
 [![TailwindCSS](https://img.shields.io/badge/styling-TailwindCSS-blue.svg)](https://tailwindcss.com/)
 [![Azure Cloud](https://img.shields.io/badge/cloud-Azure-0078D4.svg)](https://azure.microsoft.com/)
-[![Open in CodeSandbox](https://img.shields.io/badge/Open%20in-CodeSandbox-black?logo=codesandbox)](https://codesandbox.io/s/github/hrishikesh285/crimsoncare)
+
 
 
 <div align="center">
