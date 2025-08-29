@@ -77,7 +77,7 @@ It eliminates fake requests with **ABHA ID & prescription verification**, ensure
 Thanks to all the amazing contributors who made CrimsonCare possible:
 
 - **Hrishikesh Jeeri** 
-- **Koushik Galla**
+- **Gnana Sri Koushik Galla**
 
 ## 🚀 Getting Started
 
